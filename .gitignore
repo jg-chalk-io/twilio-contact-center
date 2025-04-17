@@ -6,8 +6,8 @@ logs
 *.log
 npm-debug.log*
 
-# API Keys
-.env
+# Environment variables
+.env*
 
 # Runtime data
 pids
@@ -28,5 +28,3 @@ Thumbs.db
 .idea
 .idea/*
 .vercel
-.env.production
-.env
