@@ -206,10 +206,13 @@ router.route('/dashboard/recording-callback').post(dashboard.handleRecordingCall
 router.route('/dashboard/workers').get(dashboard.getWorkers)
 router.route('/dashboard/ems-token').post(dashboard.getEmsToken)
 
-app.use('/api', router)
-app.use('/', express.static(__dirname + '/public'))
+// Serve static files first
+app.use(express.static(__dirname + '/public'))
 
-// Dashboard route
+// API routes
+app.use('/api', router)
+
+// Dashboard route - should come after static files
 app.get('/dashboard', dashboard.getDashboard)
 
 // Setup ngrok for local development (to expose local server to the internet for Twilio webhooks)
