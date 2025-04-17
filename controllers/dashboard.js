@@ -286,7 +286,20 @@ exports.getWorkers = function(req, res) {
  * @param {Object} res - Express response object
  */
 exports.getDashboard = function(req, res) {
-	res.sendFile(process.cwd() + '/public/dashboard/taskrouter_dashboard.html')
+	console.log('Serving dashboard HTML page');
+	try {
+		const filePath = process.cwd() + '/public/dashboard/taskrouter_dashboard.html';
+		console.log('Dashboard file path:', filePath);
+		res.sendFile(filePath, function(err) {
+			if (err) {
+				console.error('Error sending dashboard file:', err);
+				res.status(500).send('Error loading dashboard: ' + err.message);
+			}
+		});
+	} catch (error) {
+		console.error('Exception serving dashboard:', error);
+		res.status(500).send('Error loading dashboard: ' + error.message);
+	}
 }
 
 /**

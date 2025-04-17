@@ -94,8 +94,13 @@ app.use(function (req, res, next) {
 	next()
 })
 
+// Request logger middleware
 app.use(function (req, res, next) {
+	console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+	next();
+});
 
+app.use(function (req, res, next) {
 	if (!context.get() || !context.get().configuration) {
 		res.status(500).send('error: configuration could not be loaded')
 	} else {
@@ -103,7 +108,6 @@ app.use(function (req, res, next) {
 		req.util = util
 		next()
 	}
-
 })
 
 app.use('/', function (req, res, next) {
@@ -209,11 +213,16 @@ router.route('/dashboard/ems-token').post(dashboard.getEmsToken)
 // Serve static files first
 app.use(express.static(__dirname + '/public'))
 
+// Explicitly serve dashboard static files
+app.use('/dashboard/images', express.static(__dirname + '/public/dashboard/images'))
+app.use('/dashboard', express.static(__dirname + '/public/dashboard'))
+
 // API routes
 app.use('/api', router)
 
 // Dashboard route - should come after static files
-app.get('/dashboard', dashboard.getDashboard)
+app.get('/dashboard/', dashboard.getDashboard)
+app.get('/dashboard/index.html', dashboard.getDashboard)
 
 // Setup ngrok for local development (to expose local server to the internet for Twilio webhooks)
 const ngrok = require('ngrok')
