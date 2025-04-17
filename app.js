@@ -10,7 +10,7 @@ var compression   = require('compression')
 
 const context = require('./context')
 
-var { isRunningOnHeroku, isRunningOnGoogle } = require('./util-cloud-provider')
+var { isRunningOnHeroku, isRunningOnGoogle, isRunningOnVercel } = require('./util-cloud-provider')
 
 /* check the environment the application is running on */
 let util
@@ -22,6 +22,11 @@ if (isRunningOnHeroku()) {
 } else if (isRunningOnGoogle()) {
 	console.log('application is running on Google App Engine')
 	util = require('./util-google-cloud-datastore.js')
+	util.createConfigurationIfNotExists()
+} else if (isRunningOnVercel()) {
+	console.log('application is running on Vercel')
+	// For Vercel, we'll use Supabase for configuration storage
+	util = require('./util-supabase.js')
 	util.createConfigurationIfNotExists()
 } else {
 	console.log('application is running on unknown host with local configuration')
@@ -41,13 +46,21 @@ var app = express()
 app.set('port', (process.env.PORT || 5000))
 
 app.use(compression())
-app.use(sessions({
+
+// Session configuration
+const sessionConfig = {
 	resave: true,
 	saveUninitialized: false,
-	secret: 'keyboard cat',
+	secret: process.env.SESSION_SECRET || 'keyboard cat',
 	name: 'twilio_call_center_session',
-	cookie: { maxAge: 3600000 }
-}))
+	cookie: {
+		maxAge: 3600000,
+		secure: process.env.NODE_ENV === 'production'
+	}
+}
+
+// In production, use a more robust session store if available
+app.use(sessions(sessionConfig))
 
 app.use(bodyParser.json({}))
 app.use(bodyParser.urlencoded({
@@ -142,7 +155,9 @@ router.route('/agents/logout').post(agents.logout)
 router.route('/agents/session').get(agents.getSession)
 
 var phone = require('./controllers/phone.js')
+var phoneIncoming = require('./controllers/phone-incoming.js')
 
+router.route('/phone/incoming').post(phoneIncoming.incoming)
 router.route('/phone/call').post(phone.call)
 router.route('/phone/call/:sid/add-participant/:phone').post(phone.addParticipant)
 router.route('/phone/call/:sid/conference').get(phone.getConference)
@@ -189,6 +204,7 @@ router.route('/dashboard/tasks').get(dashboard.getTasks)
 router.route('/dashboard/sync-tasks').get(dashboard.syncTasks)
 router.route('/dashboard/recording-callback').post(dashboard.handleRecordingCallback)
 router.route('/dashboard/workers').get(dashboard.getWorkers)
+router.route('/dashboard/ems-token').post(dashboard.getEmsToken)
 
 app.use('/api', router)
 app.use('/', express.static(__dirname + '/public'))
