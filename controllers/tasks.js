@@ -1,6 +1,7 @@
 /* this route creates tasks for our customers */
 const taskrouterHelper = require('./helpers/taskrouter-helper.js');
-const chatHelper = require('./helpers/chat-helper.js');
+const chatHelper = require('./helpers/chat-helper.js'); // Deprecated, kept for backward compatibility
+const conversationsHelper = require('./helpers/conversations-helper.js');
 const videoHelper = require('./helpers/video-helper.js');
 
 module.exports.createCallback = async (req, res) => {
@@ -31,7 +32,8 @@ module.exports.createChat = async (req, res) => {
   const uniqueName = `chat_room_${Math.random().toString(36).substring(7)}`;
 
   try {
-    const channel = await chatHelper.createChannel(friendlyName, uniqueName);
+    // Create a conversation using the Conversations API
+    const conversation = await conversationsHelper.createConversation(friendlyName, uniqueName);
 
     const attributes = {
       title: 'Chat request',
@@ -39,21 +41,22 @@ module.exports.createChat = async (req, res) => {
       channel: 'chat',
       name: req.body.identity,
       chat: {
-        sid: channel.sid,
-        friendlyName: channel.friendlyName,
-        uniqueName: channel.uniqueName
+        sid: conversation.sid,
+        friendlyName: conversation.friendlyName,
+        uniqueName: conversation.uniqueName
       }
     };
 
     const task = await taskrouterHelper.createTask(attributes);
 
+    // Create an access token using the Conversations API
     const response = {
       identity: req.body.identity,
-      token: chatHelper.createAccessToken(req.body.identity, req.body.endpointId).toJwt(),
+      token: conversationsHelper.createAccessToken(req.body.identity, req.body.endpointId).toJwt(),
       chat: {
-        sid: channel.sid,
-        friendlyName: channel.friendlyName,
-        uniqueName: channel.uniqueName
+        sid: conversation.sid,
+        friendlyName: conversation.friendlyName,
+        uniqueName: conversation.uniqueName
       },
       taskSid: task.sid
     };

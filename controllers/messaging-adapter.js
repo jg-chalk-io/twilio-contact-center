@@ -1,6 +1,7 @@
 const twilio = require('twilio');
 const taskrouterHelper = require('./helpers/taskrouter-helper.js');
 const helper = require('./messaging-adapter-helper');
+const conversationsHelper = require('./helpers/conversations-helper');
 
 const client = twilio(process.env.TWILIO_API_KEY_SID, process.env.TWILIO_API_KEY_SECRET, {
 	accountSid: process.env.TWILIO_ACCOUNT_SID
@@ -48,9 +49,16 @@ module.exports.inbound = async (req, res) => {
 };
 
 const fetchChannel = async (sid) => {
-	const channel = await client.chat.services(process.env.TWILIO_CHAT_SERVICE_SID).channels(sid).fetch();
-
-	return channel;
+	try {
+		// Try to fetch using Conversations API first
+		const conversation = await conversationsHelper.fetchConversation(sid);
+		return conversation;
+	} catch (error) {
+		// Fall back to Chat API for backward compatibility
+		console.warn('Falling back to Chat API for fetching channel');
+		const channel = await client.chat.services(process.env.TWILIO_CHAT_SERVICE_SID).channels(sid).fetch();
+		return channel;
+	}
 };
 
 const retrieveChannel = async (req) => {
@@ -86,32 +94,36 @@ const createChannel = async (uniqueName, friendlyName, from) => {
 		attributes: JSON.stringify({ forwarding: true })
 	};
 
-	const channel = await client.chat.services(process.env.TWILIO_CHAT_SERVICE_SID).channels.create(payload);
+	// Create conversation using Conversations API
+	const conversation = await conversationsHelper.createConversation(friendlyName, uniqueName);
 
-	console.log(`channel ${channel.sid} created`);
+	console.log(`conversation ${conversation.sid} created`);
 
-	const member = await client.chat
-		.services(process.env.TWILIO_CHAT_SERVICE_SID)
-		.channels(channel.sid)
-		.members.create({
-			identity: from
-		});
+	// Add participant to the conversation
+	const participant = await conversationsHelper.createParticipant(conversation.sid, from);
 
-	console.log(`added member ${member.sid} (${from}) to channel ${channel.sid}`);
+	console.log(`added participant ${participant.sid} (${from}) to conversation ${conversation.sid}`);
 
-	return channel;
+	return conversation;
 };
 
 const createMessage = async (channel, from, body) => {
-	const message = await client.chat
-		.services(process.env.TWILIO_CHAT_SERVICE_SID)
-		.channels(channel.sid)
-		.messages.create({
-			from: from,
-			body: body
-		});
-
-	return message;
+	try {
+		// Try to create message using Conversations API
+		const message = await conversationsHelper.createMessage(channel.sid, from, body);
+		return message;
+	} catch (error) {
+		// Fall back to Chat API for backward compatibility
+		console.warn('Falling back to Chat API for creating message');
+		const message = await client.chat
+			.services(process.env.TWILIO_CHAT_SERVICE_SID)
+			.channels(channel.sid)
+			.messages.create({
+				from: from,
+				body: body
+			});
+		return message;
+	}
 };
 
 const hasActiveTask = async (from) => {
@@ -133,20 +145,37 @@ const createTask = async (req, channel) => {
 };
 
 const forwardChannel = async (channel, req) => {
-	const members = await client.chat
-		.services(process.env.TWILIO_CHAT_SERVICE_SID)
-		.channels(channel.sid)
-		.members.list();
+	try {
+		// Try to get participants using Conversations API
+		const participants = await client.conversations.v1.conversations(channel.sid).participants.list();
 
-	await Promise.all(
-		members.map(async (member) => {
-			if (req.body.From !== member.identity) {
-				console.log(`${req.direction} forward message "${req.body.Body}" to identity ${member.identity}`);
+		await Promise.all(
+			participants.map(async (participant) => {
+				if (req.body.From !== participant.identity) {
+					console.log(`${req.direction} forward message "${req.body.Body}" to identity ${participant.identity}`);
 
-				await forwardMessage(member.identity, req.body.Body, req);
-			}
-		})
-	);
+					await forwardMessage(participant.identity, req.body.Body, req);
+				}
+			})
+		);
+	} catch (error) {
+		// Fall back to Chat API for backward compatibility
+		console.warn('Falling back to Chat API for listing members');
+		const members = await client.chat
+			.services(process.env.TWILIO_CHAT_SERVICE_SID)
+			.channels(channel.sid)
+			.members.list();
+
+		await Promise.all(
+			members.map(async (member) => {
+				if (req.body.From !== member.identity) {
+					console.log(`${req.direction} forward message "${req.body.Body}" to identity ${member.identity}`);
+
+					await forwardMessage(member.identity, req.body.Body, req);
+				}
+			})
+		);
+	}
 };
 
 const forwardMessage = async (to, body, req) => {

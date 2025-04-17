@@ -1,35 +1,17 @@
-const twilio 	= require('twilio')
+/**
+ * DEPRECATED: This module is deprecated and will be removed in a future version.
+ * Please use the conversations-helper.js module instead.
+ */
 
-const AccessToken 	= twilio.jwt.AccessToken
-const ChatGrant 		= twilio.jwt.AccessToken.ChatGrant
+const conversationsHelper = require('./conversations-helper')
 
-const client = twilio(process.env.TWILIO_API_KEY_SID, process.env.TWILIO_API_KEY_SECRET, {
-	accountSid: process.env.TWILIO_ACCOUNT_SID
-});
-
+// For backward compatibility, we're redirecting to the new conversations helper
 module.exports.createChannel = async (friendlyName, uniqueName) => {
-	return client.chat.services(process.env.TWILIO_CHAT_SERVICE_SID).channels.create({
-		friendlyName: friendlyName,
-		uniqueName: uniqueName
-	})
+	console.warn('WARNING: chat-helper.createChannel is deprecated. Use conversations-helper.createConversation instead.')
+	return conversationsHelper.createConversation(friendlyName, uniqueName)
 }
 
 module.exports.createAccessToken = (identity, endpointId) => {
-		/* create token */
-		const accessToken = new AccessToken(
-			process.env.TWILIO_ACCOUNT_SID,
-			process.env.TWILIO_API_KEY_SID,
-			process.env.TWILIO_API_KEY_SECRET,
-			{ ttl: 3600 })
-	
-		/* grant the access token Twilio Programmable Chat capabilities */
-		const chatGrant = new ChatGrant({
-			serviceSid: process.env.TWILIO_CHAT_SERVICE_SID,
-			endpointId: endpointId
-		})
-	
-		accessToken.addGrant(chatGrant)
-		accessToken.identity = identity
-
-		return accessToken
+	console.warn('WARNING: chat-helper.createAccessToken is deprecated. Use conversations-helper.createAccessToken instead.')
+	return conversationsHelper.createAccessToken(identity, endpointId)
 }

@@ -66,32 +66,41 @@ app.controller('ChatController', function ($scope, $http, $timeout, $log) {
 
 	$scope.setupClient = function (channelSid) {
 
-		$log.log('Initiate Twilio Chat, channelSid: ' + channelSid);
-		const accessManager = new Twilio.AccessManager($scope.session.token);
+		$log.log('Initiate Twilio Conversations, conversationSid: ' + channelSid);
 
-		/**
-		 * you'll want to be sure to listen to the tokenExpired event either update
-		 * the token via accessManager.updateToken(<token>) or let your page tell the user
-		 * the chat is not active anymore
-		**/
-		accessManager.on('tokenExpired', function () {
-			$log.warn('token expired');
-			$scope.session.expired = true;
-			$scope.$apply();
-		});
-
-		accessManager.on('error', function (err) {
-			$log.error('An error occurred');
-			$log.error(err);
-		});
-
-		Twilio.Chat.Client.create($scope.session.token, { logLevel: 'debug' }).then((client) => {
-			return client.getChannelBySid(channelSid);
-		}).then((channel) => {
-			$scope.setupChannel(channel);
+		// Initialize the Conversations Client
+		Twilio.Conversations.Client.create($scope.session.token, { logLevel: 'debug' }).then((client) => {
+			// Try to get the conversation by SID
+			return client.getConversationBySid(channelSid);
+		}).then((conversation) => {
+			$scope.setupChannel(conversation);
 		}).catch((error) => {
-			$log.error('Setting up chat client failed');
+			$log.error('Setting up conversations client failed');
 			$log.error(error);
+
+			// Fall back to Chat API for backward compatibility
+			$log.warn('Falling back to Chat API');
+			const accessManager = new Twilio.AccessManager($scope.session.token);
+
+			accessManager.on('tokenExpired', function () {
+				$log.warn('token expired');
+				$scope.session.expired = true;
+				$scope.$apply();
+			});
+
+			accessManager.on('error', function (err) {
+				$log.error('An error occurred');
+				$log.error(err);
+			});
+
+			Twilio.Chat.Client.create($scope.session.token, { logLevel: 'debug' }).then((client) => {
+				return client.getChannelBySid(channelSid);
+			}).then((channel) => {
+				$scope.setupChannel(channel);
+			}).catch((error) => {
+				$log.error('Setting up chat client failed');
+				$log.error(error);
+			});
 		});
 
 	};

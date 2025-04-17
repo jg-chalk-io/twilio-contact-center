@@ -27,3 +27,6 @@ ehthumbs.db
 Thumbs.db
 .idea
 .idea/*
+.vercel
+.env.production
+.env

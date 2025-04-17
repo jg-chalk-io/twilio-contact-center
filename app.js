@@ -1,5 +1,8 @@
 'use-strict'
 
+// Load environment variables from .env file
+require('dotenv').config()
+
 var express       = require('express')
 var bodyParser    = require('body-parser')
 var sessions      = require('express-session')
@@ -176,9 +179,38 @@ var messagingAdapter = require('./controllers/messaging-adapter.js')
 router.route('/messaging-adapter/inbound').post(messagingAdapter.inbound)
 router.route('/messaging-adapter/outbound').post(messagingAdapter.outbound)
 
+/* routes for dashboard */
+var dashboard = require('./controllers/dashboard.js')
+
+router.route('/dashboard/token').get(dashboard.getToken)
+router.route('/dashboard/event').post(dashboard.handleEvent)
+router.route('/dashboard/statistics').get(dashboard.syncStatistics)
+router.route('/dashboard/tasks').get(dashboard.getTasks)
+router.route('/dashboard/sync-tasks').get(dashboard.syncTasks)
+router.route('/dashboard/recording-callback').post(dashboard.handleRecordingCallback)
+router.route('/dashboard/workers').get(dashboard.getWorkers)
+
 app.use('/api', router)
 app.use('/', express.static(__dirname + '/public'))
 
+// Dashboard route
+app.get('/dashboard', dashboard.getDashboard)
+
+// Setup ngrok for local development (to expose local server to the internet for Twilio webhooks)
+const ngrok = require('ngrok')
+
+const ngrokUrl = async function () {
+	const url = await ngrok.connect((process.env.PORT || 5000))
+	console.log('ngrok url ->', url)
+	console.log('Please use this URL for your Twilio webhooks')
+	console.log('After the installation has completed please open ' + url + '/setup to configure the application')
+}
+
 app.listen(app.get('port'), function () {
 	console.log('magic happens on port', app.get('port'))
+
+	// Only start ngrok in local development environment
+	if (!isRunningOnHeroku() && !isRunningOnGoogle()) {
+		ngrokUrl()
+	}
 })

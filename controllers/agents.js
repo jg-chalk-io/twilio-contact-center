@@ -3,6 +3,7 @@ const twilio = require('twilio')
 const AccessToken = twilio.jwt.AccessToken
 
 const taskrouterHelper = require('./helpers/taskrouter-helper.js')
+const conversationsHelper = require('./helpers/conversations-helper.js')
 
 module.exports.login = function (req, res) {
 
@@ -41,7 +42,12 @@ const createAccessToken = (applicationSid, friendlyName, endpointId) => {
 
 	accessToken.identity = friendlyName
 
-	/* grant the token Twilio Programmable Chat capabilities */
+	/* grant the token Twilio Conversations capabilities */
+	const conversationsGrant = new AccessToken.ConversationsGrant({
+		serviceSid: process.env.TWILIO_CONVERSATIONS_SERVICE_SID
+	})
+
+	/* For backward compatibility */
 	const chatGrant = new AccessToken.ChatGrant({
 		serviceSid: process.env.TWILIO_CHAT_SERVICE_SID,
 		endpointId: endpointId
@@ -56,7 +62,8 @@ const createAccessToken = (applicationSid, friendlyName, endpointId) => {
 		outgoingApplicationSid: applicationSid
 	})
 
-	accessToken.addGrant(chatGrant)
+	accessToken.addGrant(conversationsGrant)
+	accessToken.addGrant(chatGrant) // For backward compatibility
 	accessToken.addGrant(videoGrant)
 	accessToken.addGrant(clientGrant)
 

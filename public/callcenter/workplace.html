@@ -122,7 +122,7 @@
                   <div class="chat-canvas" scroll-glue>
 
                     <ul class="message-list">
-                    
+
                       <li ng-class="{'me': message.author == session.identity}" class="message" ng-repeat="message in messages">
 
                         <div>
@@ -282,6 +282,11 @@
     <script src="//media.twiliocdn.com/sdk/js/client/v1.7/twilio.min.js"></script>
     <script src="//media.twiliocdn.com/taskrouter/js/v1.20/taskrouter.min.js"></script>
     <script src="//media.twiliocdn.com/sdk/js/common/v0.1/twilio-common.min.js"></script>
+
+    <!-- Twilio Conversations SDK (new) -->
+    <script src="//sdk.twilio.com/js/conversations/releases/2.4.1/twilio-conversations.min.js"></script>
+
+    <!-- Twilio Chat SDK (deprecated, kept for backward compatibility) -->
     <script src="//media.twiliocdn.com/sdk/js/chat/v3.3/twilio-chat.min.js"></script>
 
     <script src="//media.twiliocdn.com/sdk/js/video/v1/twilio-video.min.js"></script>
