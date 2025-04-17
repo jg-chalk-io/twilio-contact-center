@@ -298,8 +298,17 @@ exports.getEmsToken = function(req, res) {
 	const axios = require('axios')
 	const url = 'https://ems.us1.twilio.com/v1/token'
 
+	console.log('Received EMS token request with body:', JSON.stringify(req.body))
+
+	// If the request body is empty, use a default payload
+	const payload = Object.keys(req.body).length === 0 ? {
+		identity: 'dashboard-user',
+		product: 'flex',
+		token_ttl: 3600
+	} : req.body
+
 	// Forward the request to Twilio EMS with proper headers
-	axios.post(url, req.body, {
+	axios.post(url, payload, {
 		headers: {
 			'Content-Type': 'application/json',
 			'Authorization': 'Basic ' + Buffer.from(
@@ -308,13 +317,19 @@ exports.getEmsToken = function(req, res) {
 		}
 	})
 	.then(response => {
+		console.log('EMS token request successful')
 		res.json(response.data)
 	})
 	.catch(error => {
-		console.error('Error proxying EMS token request:', error)
+		console.error('Error proxying EMS token request:', error.message)
+		if (error.response) {
+			console.error('Response data:', error.response.data)
+			console.error('Response status:', error.response.status)
+		}
 		res.status(500).json({
 			error: 'Error proxying EMS token request',
-			details: error.message
+			details: error.message,
+			response: error.response ? error.response.data : null
 		})
 	})
 }
@@ -332,6 +347,8 @@ function syncTaskRouterStatistics(client) {
 		.statistics()
 		.fetch({minutes: 60})
 		.then(statistics => {
+			console.log('Retrieved TaskRouter statistics')
+
 			// Process statistics data
 			stats.totalTasks = statistics.realtime.total_tasks
 			stats.totalWorkers = statistics.realtime.total_workers
@@ -360,13 +377,17 @@ function syncTaskRouterStatistics(client) {
 			stats.startTime = statistics.cumulative.start_time
 			stats.endTime = statistics.cumulative.end_time
 
+			console.log('Processed statistics:', JSON.stringify(stats))
+
 			// Update Sync document with statistics
 			return client.sync.v1.services(process.env.TWILIO_SYNC_SERVICE_SID)
 				.documents('SyncTaskRouterStats')
 				.update({data: stats})
 				.catch(err => {
+					console.log('Error updating Sync document:', err.message)
 					// If document doesn't exist, create it
 					if (err.code === 20404) {
+						console.log('Sync document not found, creating it')
 						return client.sync.v1.services(process.env.TWILIO_SYNC_SERVICE_SID)
 							.documents
 							.create({
@@ -378,11 +399,14 @@ function syncTaskRouterStatistics(client) {
 				})
 		})
 		.then(() => {
-			console.log('Statistics synced')
+			console.log('Statistics synced successfully')
 			return Promise.resolve()
 		})
 		.catch(err => {
-			console.error('Error syncing statistics:', err)
+			console.error('Error syncing statistics:', err.message)
+			if (err.code) {
+				console.error('Error code:', err.code)
+			}
 			return Promise.reject(err)
 		})
 }
