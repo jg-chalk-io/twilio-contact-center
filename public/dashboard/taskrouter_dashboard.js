@@ -161,13 +161,25 @@ var taskrouterDashboard = new Vue({
       }
     },
     serverSideStatsInit: function() {
+      console.log('Initializing server-side statistics...');
       return axios.get(this.stats_get_url + '?userid=' + this.loggedUser)
         .then(function (response) {
-          console.log('Server Side Stats Synced');
+          console.log('Server Side Stats Synced successfully');
         })
         .catch(function (error) {
-          console.log(error);
-        })
+          console.error('Error syncing server-side stats:', error);
+          // Retry after 5 seconds
+          setTimeout(function() {
+            console.log('Retrying server-side stats initialization...');
+            axios.get(this.stats_get_url + '?userid=' + this.loggedUser)
+              .then(function() {
+                console.log('Retry successful');
+              })
+              .catch(function(retryError) {
+                console.error('Retry failed:', retryError);
+              });
+          }.bind(this), 5000);
+        }.bind(this))
     }
   },
   mounted() {
